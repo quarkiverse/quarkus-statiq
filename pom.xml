@@ -16,11 +16,12 @@
     <modules>
         <module>common</module>
         <module>common-deployment</module>
-        <module>roq/runtime</module>
-        <module>roq/deployment</module>
         <module>docs</module>
         <module>roq-generator</module>
         <module>roq-data</module>
+        <module>roq-frontmatter</module>
+        <module>roq/runtime</module>
+        <module>roq/deployment</module>
     </modules>
 
     <scm>
@@ -71,4 +72,18 @@
         </pluginManagement>
     </build>
 
+    <profiles>
+        <profile>
+            <id>it</id>
+            <activation>
+                <property>
+                    <name>performRelease</name>
+                    <value>!true</value>
+                </property>
+            </activation>
+            <modules>
+                <module>integration-tests</module>
+            </modules>
+        </profile>
+    </profiles>
 </project>
