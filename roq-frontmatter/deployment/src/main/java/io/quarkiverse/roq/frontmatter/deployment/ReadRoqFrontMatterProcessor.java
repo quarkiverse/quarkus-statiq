@@ -5,6 +5,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Consumer;
@@ -30,7 +31,7 @@ public class ReadRoqFrontMatterProcessor {
     void scanDataFiles(BuildProducer<RoqFrontMatterBuildItem> dataProducer,
             RoqFrontMatterConfig roqDataConfig) {
         try {
-            Set<RoqFrontMatterBuildItem> items = scanDataFiles(roqDataConfig.location);
+            Set<RoqFrontMatterBuildItem> items = scanDataFiles(roqDataConfig.locations());
 
             for (RoqFrontMatterBuildItem item : items) {
                 dataProducer.produce(item);
@@ -41,26 +42,27 @@ public class ReadRoqFrontMatterProcessor {
         }
     }
 
-    public Set<RoqFrontMatterBuildItem> scanDataFiles(String location) throws IOException {
+    public Set<RoqFrontMatterBuildItem> scanDataFiles(List<String> locations) throws IOException {
 
         HashSet<RoqFrontMatterBuildItem> items = new HashSet<>();
+        for (String location : locations) {
+            final String finalLocation = buildFinalLocation(location);
+            String resourcePath = "site/" + finalLocation;
 
-        String finalLocation = buildFinalLocation(location);
+            ClassPathUtils.consumeAsPaths(resourcePath, (path) -> {
+                if (Files.isDirectory(path)) {
+                    try (Stream<Path> pathStream = Files.walk(path)) {
+                        pathStream
+                                .filter(Files::isRegularFile)
+                                .filter(isExtensionSupported())
+                                .forEach(addBuildItem(items, finalLocation));
 
-        ClassPathUtils.consumeAsPaths(finalLocation, (path) -> {
-            if (Files.isDirectory(path)) {
-                try (Stream<Path> pathStream = Files.walk(path)) {
-                    pathStream
-                            .filter(Files::isRegularFile)
-                            .filter(isExtensionSupported())
-                            .forEach(addBuildItem(items, finalLocation));
-
-                } catch (IOException e) {
-                    throw new RuntimeException("Was not possible to scan data files on location %s".formatted(location), e);
+                    } catch (IOException e) {
+                        throw new RuntimeException("Was not possible to scan data files on location %s".formatted(location), e);
+                    }
                 }
-            }
-        });
-
+            });
+        }
         return items;
     }
 
@@ -74,12 +76,13 @@ public class ReadRoqFrontMatterProcessor {
                     Yaml yaml = new Yaml();
                     Map<String, Object> map = yaml.loadAs(getFrontMatter(fullContent), Map.class);
                     final JsonObject fm = new JsonObject(map);
+                    final String layout = normalizedLayout(fm.getString("layout"));
                     final String content = stripFrontMatter(fullContent);
                     LOGGER.debugf("Creating generated template for %s" + path);
-                    final String generatedTemplate = generateTemplate(fm, content);
-                    items.add(new RoqFrontMatterBuildItem(path, fm, generatedTemplate));
+                    final String generatedTemplate = generateTemplate(layout, content);
+                    items.add(new RoqFrontMatterBuildItem(path, layout, fm, generatedTemplate));
                 } else {
-                    items.add(new RoqFrontMatterBuildItem(path, new JsonObject(), fullContent));
+                    items.add(new RoqFrontMatterBuildItem(path, null, new JsonObject(), fullContent));
                 }
             } catch (IOException e) {
                 throw new RuntimeException("Error while reading the FrontMatter file %s"
@@ -88,18 +91,26 @@ public class ReadRoqFrontMatterProcessor {
         };
     }
 
-    private static String generateTemplate(JsonObject data, String content) {
+    private static String generateTemplate(String layout, String content) {
         StringBuilder template = new StringBuilder();
-        if (data.containsKey("layout")) {
-            String layout = data.getString("layout");
-            if (!layout.endsWith(".html")) {
-                layout += ".html";
-            }
-            template.append("{#include ").append(layout).append("}\n\n");
+        if (layout != null) {
+            template.append("{#include ").append(layout).append("}\n");
         }
         template.append(content);
-
+        template.append("\n{/include}");
         return template.toString();
+    }
+
+    private static String normalizedLayout(String layout) {
+        if (layout == null) {
+            return null;
+        }
+        StringBuilder b = new StringBuilder("layout/");
+        b.append(layout);
+        if (!layout.endsWith(".html")) {
+            b.append(".html");
+        }
+        return b.toString();
     }
 
     private static Predicate<Path> isExtensionSupported() {

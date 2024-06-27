@@ -1,10 +1,9 @@
 package io.quarkiverse.roq.data.test;
 
-import io.quarkus.qute.CheckedTemplate;
-import io.quarkus.qute.TemplateInstance;
-import io.quarkus.test.QuarkusUnitTest;
-import io.restassured.RestAssured;
-import io.vertx.core.json.JsonObject;
+import static org.hamcrest.Matchers.equalToCompressingWhiteSpace;
+
+import java.util.Map;
+
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.inject.Named;
@@ -12,12 +11,15 @@ import jakarta.ws.rs.GET;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
+
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
-import java.util.Map;
-
-import static org.hamcrest.Matchers.equalToCompressingWhiteSpace;
+import io.quarkus.qute.CheckedTemplate;
+import io.quarkus.qute.TemplateInstance;
+import io.quarkus.test.QuarkusUnitTest;
+import io.restassured.RestAssured;
+import io.vertx.core.json.JsonObject;
 
 public class RoqFrontMatterTest {
 
@@ -26,44 +28,80 @@ public class RoqFrontMatterTest {
     static final QuarkusUnitTest unitTest = new QuarkusUnitTest()
             .withApplicationRoot((jar) -> jar
                     .addClass(MyResource.class)
-                    .addAsResource("templates/base.html")
-                    .addAsResource("posts/article.html"));
+                    .addAsResource("site/layout/default.html")
+                    .addAsResource("site/layout/page.html")
+                    .addAsResource("site/layout/post.html")
+                    .addAsResource("site/posts/awesome-post.html")
+                    .addAsResource("site/pages/cool-page.html"));
 
     @Test
     public void writeYourOwnUnitTest() {
-        RestAssured.when().get("/posts/my-cool-page").then().statusCode(200).log().ifValidationFails().body(equalToCompressingWhiteSpace("""
-                <!DOCTYPE html>
-                <html>
-                  <head>
-                    <title>My Cool Page</title>
-                    <meta name="description" content="this is a very cool page"/>
-                  </head>
-                  <body>
-                    <h1>Hello World</h1>
-                    <p>bar</p>
-                  </body>
-                </html>
-                """));
+        RestAssured.when().get("/posts/awesome-post").then().statusCode(200).log().ifValidationFails()
+                .body(equalToCompressingWhiteSpace("""
+                        <!DOCTYPE html>
+                        <html>
+                          <head>
+                            <title>My Cool Page</title>
+                            <meta name="description" content="this is a very cool page"/>
+                          </head>
+                          <body>
+                            <h1>Hello World</h1>
+                            <p>bar</p>
+                          </body>
+                        </html>
+                        """));
+        RestAssured.when().get("/cool-page").then().statusCode(200).log().ifValidationFails()
+                .body(equalToCompressingWhiteSpace("""
+                        <!DOCTYPE html>
+                        <html>
+                          <head>
+                            <title>My Cool Page</title>
+                            <meta name="description" content="this is a very cool page"/>
+                          </head>
+                          <body>
+                            <h1>Hello World</h1>
+                            <p>bar</p>
+                          </body>
+                        </html>
+                        """));
     }
 
     @ApplicationScoped
-    @Path("/posts")
+    @Path("/")
     public static class MyResource {
 
         @Inject
-        @Named("posts/article.html")
-        JsonObject fm;
+        @Named("posts/awesome-post.html")
+        JsonObject awesomePostFm;
 
-        @CheckedTemplate(basePath = "posts")
+        @Inject
+        @Named("pages/cool-page.html")
+        JsonObject coolPageFm;
+
+        @CheckedTemplate(basePath = "pages", defaultName = CheckedTemplate.HYPHENATED_ELEMENT_NAME)
+        public static class Pages {
+
+            public static native TemplateInstance coolPage(Map<String, Object> fm);
+        }
+
+        @CheckedTemplate(basePath = "posts", defaultName = CheckedTemplate.HYPHENATED_ELEMENT_NAME)
         public static class Posts {
-            public static native TemplateInstance article(Map<String, Object> fm);
+
+            public static native TemplateInstance awesomePost(Map<String, Object> fm);
         }
 
         @GET
-        @Path("my-cool-page")
+        @Path("/posts/awesome-post")
         @Produces(MediaType.TEXT_HTML)
-        public TemplateInstance get() {
-            return Posts.article(fm.getMap());
+        public TemplateInstance awesomePost() {
+            return Posts.awesomePost(awesomePostFm.getMap());
+        }
+
+        @GET
+        @Path("/pages/cool-page")
+        @Produces(MediaType.TEXT_HTML)
+        public TemplateInstance coolPageFm() {
+            return Pages.coolPage(coolPageFm.getMap());
         }
     }
 }

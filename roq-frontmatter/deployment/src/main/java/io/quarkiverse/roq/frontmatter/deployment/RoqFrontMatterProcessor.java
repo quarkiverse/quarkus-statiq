@@ -1,6 +1,10 @@
 package io.quarkiverse.roq.frontmatter.deployment;
 
 import java.util.List;
+import java.util.Map;
+import java.util.Stack;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Named;
@@ -42,16 +46,39 @@ class RoqFrontMatterProcessor {
     void bindFrontMatterData(BuildProducer<SyntheticBeanBuildItem> beansProducer,
             List<RoqFrontMatterBuildItem> roqFrontMatterBuildItems,
             RoqFrontMatterRecorder recorder) {
-
+        Map<String, RoqFrontMatterBuildItem> byPath = roqFrontMatterBuildItems.stream()
+                .collect(Collectors.toMap(RoqFrontMatterBuildItem::path, Function.identity()));
         for (RoqFrontMatterBuildItem item : roqFrontMatterBuildItems) {
             LOGGER.info("Creating synthetic bean with identifier " + item.path());
+            final JsonObject merged = mergeParents(item, byPath);
             beansProducer.produce(SyntheticBeanBuildItem.configure(JsonObject.class)
                     .scope(ApplicationScoped.class)
                     .setRuntimeInit()
                     .addQualifier().annotation(Named.class).addValue("value", item.path()).done()
-                    .runtimeValue(recorder.createRoqDataJson(item.fm()))
+                    .runtimeValue(recorder.createRoqDataJson(merged))
                     .done());
         }
+    }
+
+    private static JsonObject mergeParents(RoqFrontMatterBuildItem item, Map<String, RoqFrontMatterBuildItem> byPath) {
+        Stack<JsonObject> fms = new Stack<>();
+        String parent = item.layout();
+        fms.add(item.fm());
+        while (parent != null) {
+            if (byPath.containsKey(parent)) {
+                final RoqFrontMatterBuildItem parentItem = byPath.get(parent);
+                parent = parentItem.layout();
+                fms.push(parentItem.fm());
+            } else {
+                parent = null;
+            }
+        }
+
+        JsonObject merged = new JsonObject();
+        while (!fms.empty()) {
+            merged.mergeIn(fms.pop());
+        }
+        return merged;
     }
 
 }

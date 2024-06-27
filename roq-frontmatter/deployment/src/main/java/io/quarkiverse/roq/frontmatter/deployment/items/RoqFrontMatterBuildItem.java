@@ -13,7 +13,9 @@ public final class RoqFrontMatterBuildItem extends MultiBuildItem {
     /**
      * The name of the Roq fm file.
      */
-    private final String name;
+    private final String path;
+
+    private final String layout;
 
     /**
      * The FrontMatter data
@@ -22,18 +24,23 @@ public final class RoqFrontMatterBuildItem extends MultiBuildItem {
 
     private final String generatedContent;
 
-    public RoqFrontMatterBuildItem(String name, JsonObject fm, String generatedContent) {
-        this.name = name;
+    public RoqFrontMatterBuildItem(String path, String layout, JsonObject fm, String generatedContent) {
+        this.path = path;
+        this.layout = layout;
         this.fm = fm;
         this.generatedContent = generatedContent;
     }
 
     public String path() {
-        return name;
+        return path;
     }
 
     public JsonObject fm() {
         return fm;
+    }
+
+    public String layout() {
+        return layout;
     }
 
     public String generatedContent() {
@@ -47,12 +54,12 @@ public final class RoqFrontMatterBuildItem extends MultiBuildItem {
         if (object == null || getClass() != object.getClass())
             return false;
         RoqFrontMatterBuildItem that = (RoqFrontMatterBuildItem) object;
-        return Objects.equals(name, that.name) && Objects.equals(fm, that.fm)
+        return Objects.equals(path, that.path) && Objects.equals(layout, that.layout) && Objects.equals(fm, that.fm)
                 && Objects.equals(generatedContent, that.generatedContent);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(name, fm, generatedContent);
+        return Objects.hash(path, layout, fm, generatedContent);
     }
 }
