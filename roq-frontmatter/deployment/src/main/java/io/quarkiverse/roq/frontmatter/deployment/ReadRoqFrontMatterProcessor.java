@@ -29,7 +29,7 @@ public class ReadRoqFrontMatterProcessor {
 
     @BuildStep
     void scanDataFiles(BuildProducer<RoqFrontMatterBuildItem> dataProducer,
-            RoqFrontMatterConfig roqDataConfig) {
+                       RoqFrontMatterConfig roqDataConfig) {
         try {
             Set<RoqFrontMatterBuildItem> items = scanDataFiles(roqDataConfig.locations());
 
@@ -68,7 +68,8 @@ public class ReadRoqFrontMatterProcessor {
 
     private static Consumer<Path> addBuildItem(HashSet<RoqFrontMatterBuildItem> items, String location) {
         return file -> {
-            String path = location + "/" + file.getFileName().toString();
+            String path = location.equals("layout") ? file.getFileName().toString()
+                    : location + "/" + file.getFileName().toString();
 
             try {
                 final String fullContent = Files.readString(file, StandardCharsets.UTF_8);
@@ -105,7 +106,7 @@ public class ReadRoqFrontMatterProcessor {
         if (layout == null) {
             return null;
         }
-        StringBuilder b = new StringBuilder("layout/");
+        StringBuilder b = new StringBuilder();
         b.append(layout);
         if (!layout.endsWith(".html")) {
             b.append(".html");

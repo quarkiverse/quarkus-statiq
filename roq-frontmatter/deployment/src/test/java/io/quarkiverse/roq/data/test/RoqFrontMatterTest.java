@@ -28,6 +28,7 @@ public class RoqFrontMatterTest {
     static final QuarkusUnitTest unitTest = new QuarkusUnitTest()
             .withApplicationRoot((jar) -> jar
                     .addClass(MyResource.class)
+                    .addAsResource("site/layout/header.html")
                     .addAsResource("site/layout/default.html")
                     .addAsResource("site/layout/page.html")
                     .addAsResource("site/layout/post.html")
@@ -37,31 +38,38 @@ public class RoqFrontMatterTest {
     @Test
     public void writeYourOwnUnitTest() {
         RestAssured.when().get("/posts/awesome-post").then().statusCode(200).log().ifValidationFails()
+                // language=html
                 .body(equalToCompressingWhiteSpace("""
                         <!DOCTYPE html>
                         <html>
-                          <head>
-                            <title>My Cool Page</title>
-                            <meta name="description" content="this is a very cool page"/>
-                          </head>
-                          <body>
-                            <h1>Hello World</h1>
-                            <p>bar</p>
-                          </body>
+                        <head>
+                          <title>My Cool Post</title>
+                          <meta name="description" content="this is a very awesome post"/>
+                        </head>
+                        <body>
+                        <article class="post">
+                          <h1>A cool blog post</h1>
+                          <p>bar</p>
+                        </article>
+                        </body>
                         </html>
                         """));
+
         RestAssured.when().get("/cool-page").then().statusCode(200).log().ifValidationFails()
+                // language=html
                 .body(equalToCompressingWhiteSpace("""
                         <!DOCTYPE html>
                         <html>
-                          <head>
-                            <title>My Cool Page</title>
-                            <meta name="description" content="this is a very cool page"/>
-                          </head>
-                          <body>
-                            <h1>Hello World</h1>
-                            <p>bar</p>
-                          </body>
+                        <head>
+                          <title>My Cool Page</title>
+                          <meta name="description" content="this is a very cool page"/>
+                        </head>
+                        <body>
+                        <article class="page">
+                          <h1>Hello World</h1>
+                          <p>bar</p>
+                        </article>
+                        </body>
                         </html>
                         """));
     }
@@ -98,7 +106,7 @@ public class RoqFrontMatterTest {
         }
 
         @GET
-        @Path("/pages/cool-page")
+        @Path("/cool-page")
         @Produces(MediaType.TEXT_HTML)
         public TemplateInstance coolPageFm() {
             return Pages.coolPage(coolPageFm.getMap());
